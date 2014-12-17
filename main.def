@@ -1,0 +1,9 @@
+LIBRARY	"AntiServerFullAttack"
+EXPORTS
+	Supports
+	Load
+	Unload
+	ProcessTick
+    OnIncomingConnection
+    OnPlayerConnect
+    OnPlayerDisconnect
