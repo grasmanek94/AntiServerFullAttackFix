@@ -2,7 +2,6 @@ GPP = g++
 GCC = gcc
 
 OUTFILE = "./AntiServerFullFix.so"
-IMMEDIATE_DIRECTORY = "*.o"
 
 INCLUDE_DIRECTORIES=-I./
 PREPROCESSOR_DEFINITIONS=-DLINUX -DNDEBUG -DRELEASE -D_LINUX -DAntiServerFullFix_EXPORTS -DSAMPGDK_AMALGAMATION -DSAMPGDK_LINUX -DSAMPGDK_STATIC -D__LINUX__
@@ -21,4 +20,4 @@ AntiServerFullFix: clean
 	$(GCC) $(AntiServerFullFix) ./sampgdk.c
 	$(GPP) $(AntiServerFullFix) ./AntiServerFullAttack.cxx
 
-	$(GPP) -shared -fwhole-program -flto $(COMPATIBILITY_FLAGS) $(OPTIMIZATION_FLAGS) -o $(OUTFILE) $(IMMEDIATE_DIRECTORY)
+	$(GPP) -shared -m32 -o $(OUTFILE) *.o
