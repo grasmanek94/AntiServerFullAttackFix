@@ -16,13 +16,16 @@
 #else
 #define THISCALL
 #define STDCALL
-
-typedef unsigned long DWORD;
-//typedef int SOCKET;
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+typedef unsigned long DWORD;
+typedef int SOCKET;
+typedef unsigned char BYTE;
 #endif
 
 #include "sampgdk.h"
