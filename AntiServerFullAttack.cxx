@@ -191,7 +191,7 @@ bool memory_compare(const BYTE *data, const BYTE *pattern, const char *mask)
 		if (*mask == 'x' && *data != *pattern)
 			return false;
 	}
-	return (*mask) == NULL;
+	return (*mask) == 0;
 }
 
 DWORD FindPattern(char *pattern, char *mask)
@@ -278,7 +278,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
 {
-	unsigned int ip_data[2] = { inet_addr(ip_address), port };
+	unsigned int ip_data[2] = { inet_addr(ip_address), (unsigned int)port };
 	if (PlayerIPSET[playerid] != 0)
 		ip_whitelist.erase(PlayerIPSET[playerid]);
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
