@@ -246,7 +246,8 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 
 #else
-	if (*((char*)(0x8150D2F + 0x07) == 0)
+
+	if (*( (char*)(0x8150D2F + 0x07) ) == 0)
 	{//500p
 		int iRealProcessNetworkPacket = 0x8073080;
 		int iSocketLayerSendTo = 0x808EB80;
@@ -264,6 +265,7 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
 		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 	}
+
 #endif
 
 	return load;
