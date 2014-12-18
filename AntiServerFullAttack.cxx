@@ -28,7 +28,7 @@ typedef unsigned long DWORD;
 #include "sampgdk.h"
 
 typedef int(THISCALL *FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char *data, int length, unsigned int binaryAddress, unsigned short port);
-typedef void(THISCALL *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
+typedef void(STDCALL *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
 
 int SendTo(SOCKET s, const char *data, int length, char ip[16], unsigned short port); 
 
