@@ -4,6 +4,7 @@ EXPORTS
 	Load
 	Unload
 	ProcessTick
+	OnGameModeInit
     OnIncomingConnection
     OnPlayerConnect
     OnPlayerDisconnect

@@ -79,18 +79,23 @@ int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short po
 void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
-	unsigned int ip_data[2] = { binaryAddress, port };
+	unsigned int ip_data[2] = { binaryAddress, (unsigned int)port };
 	if (ip_whitelist.find(*(unsigned long long*)ip_data) == ip_whitelist.end())
 	{
 		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == MySecretReturnCode(binaryAddress, port))
+		{
 			ip_whitelist.insert(*(unsigned long long*)ip_data);
+		}
 		else
 		{
 			(*(int*)(ping + 1)) = MySecretReturnCode(binaryAddress, port);
 			RealSocketLayerSendTo(pSocketLayerObject, *pRakServerSocket, (const char*)ping, 5, binaryAddress, port);
 		}
 	}
-	else RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
+	else
+	{
+		RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
+	}
 }
 
 static const size_t PLUGIN_DATA_RAKSERVER = 0xE2; // RakServerInterface* PluginGetRakServer()
@@ -224,56 +229,62 @@ PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports()
 	return sampgdk::Supports() | SUPPORTS_PROCESS_TICK;
 }
 
+void **gppData = 0;
 PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 {
 	pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
+	gppData = ppData;
 	bool load = sampgdk::Load(ppData);
-
-	srand((unsigned int)time(NULL));
-	MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
-	sampgdk_SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
-
-	int(*pfn_GetRakServer)(void) = (int(*)(void))ppData[PLUGIN_DATA_RAKSERVER];
-	pRakServer = (void*)pfn_GetRakServer();
-
-#ifdef _WIN32
-
-	int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456EF0;
-	int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633A0;
-	pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
-	pSocketLayerObject = (void*)0x004EDA71;
-	RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 7));
-	RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
-
-#else
-
-	if (*( (char*)(0x8150D2F + 0x07) ) == 0)
-	{//500p
-		int iRealProcessNetworkPacket = 0x8073080;
-		int iSocketLayerSendTo = 0x808EB80;
-		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC12);
-		pSocketLayerObject = (void*)0x08194A00;
-		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
-		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
-	}
-	else
-	{//1000p
-		int iRealProcessNetworkPacket = 0x8073080;
-		int iSocketLayerSendTo = 0x808EB80;
-		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC12);
-		pSocketLayerObject = (void*)0x08194420;
-		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
-		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
-	}
-
-#endif
-
 	return load;
 }
 
 PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 {
 	sampgdk::ProcessTick();
+}
+
+SAMPGDK_CALLBACK(bool, OnGameModeInit())
+{
+	static bool doubleinitprotection = true;
+	if (doubleinitprotection)
+	{
+		doubleinitprotection = false;
+		srand((unsigned int)time(NULL));
+		MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
+		sampgdk_SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
+
+		int(*pfn_GetRakServer)(void) = (int(*)(void))gppData[PLUGIN_DATA_RAKSERVER];
+		pRakServer = (void*)pfn_GetRakServer();
+
+#ifdef _WIN32
+
+		int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456EF0;
+		int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633A0;
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
+		pSocketLayerObject = (void*)0x004EDA71;
+		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 7));
+		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
+
+#else
+
+		int iSocketLayerSendTo = 0x808EB80;
+		int iRealProcessNetworkPacket = 0x8073080;
+		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
+		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC0A);
+
+		if (*((char*)(0x8150D2F + 0x07)) == 0)
+		{//500p	
+			pSocketLayerObject = (void*)0x08194A00;
+		}
+		else
+		{//1000p
+			pSocketLayerObject = (void*)0x08194420;
+		}
+
+#endif
+	}
+	return true;
 }
 
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
