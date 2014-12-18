@@ -11,6 +11,7 @@
 
 #include <Windows.h>
 #include <Psapi.h>
+#include <intrin.h>
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Psapi.lib")
@@ -84,26 +85,42 @@ bool inline IsGoodPongLength(size_t length)
 		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
 }
 
+//enable/disable (whichever is appropriate) this definition if you have problems with players losing randomly connection
+#define REQUIRE_BYTESWAP
+
+#ifdef REQUIRE_BYTESWAP
+unsigned long inline asfa_swapbytes(unsigned long bytes)
+{
+	#ifdef _WIN32
+		return _byteswap_ulong(bytes);
+	#else
+	return __builtin_bswap32(bytes);
+	#endif
+}
+#endif
+
 void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
-	unsigned int ip_data[2] = { binaryAddress, (unsigned int)port };
+	unsigned int ip_data[2] = {
+		#ifdef REQUIRE_BYTESWAP
+		asfa_swapbytes(binaryAddress),
+		#else
+		binaryAddress,
+		#endif
+		(unsigned int)port
+	};
 	if (ip_whitelist.find(*(unsigned long long*)ip_data) == ip_whitelist.end())
 	{
-		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == MySecretReturnCode(binaryAddress, port))
-		{
+		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == MySecretReturnCode(ip_data[0], port))
 			ip_whitelist.insert(*(unsigned long long*)ip_data);
-		}
 		else
 		{
-			(*(int*)(ping + 1)) = MySecretReturnCode(binaryAddress, port);
+			(*(int*)(ping + 1)) = MySecretReturnCode(ip_data[0], port);
 			RealSocketLayerSendTo(pSocketLayerObject, *pRakServerSocket, (const char*)ping, 5, binaryAddress, port);
 		}
 	}
-	else
-	{
-		RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
-	}
+	else RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
 }
 
 void* Detour(unsigned char* src, unsigned char* dst, int num)
