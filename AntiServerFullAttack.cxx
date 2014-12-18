@@ -2,15 +2,43 @@
 //Thanks to Kurta999 and GWMPT for help
 
 #include <set>
-#include <boost/asio.hpp>
+#include <time.h>
+
+#ifdef _WIN32
+#define THISCALL __thiscall
+#define STDCALL __stdcall
+
+#include <Windows.h>
+#include <Psapi.h>
+
+#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Psapi.lib")
+#else
+#define THISCALL
+#define STDCALL
+
+typedef unsigned long DWORD;
+//typedef int SOCKET;
+
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif
+
 #include "sampgdk.h"
 
-int SendTo(SOCKET s, const char *data, int length, char ip[16], unsigned short port);
-typedef int(__thiscall *FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char *data, int length, unsigned int binaryAddress, unsigned short port);
+typedef int(THISCALL *FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char *data, int length, unsigned int binaryAddress, unsigned short port);
+typedef void(THISCALL *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
+
+int SendTo(SOCKET s, const char *data, int length, char ip[16], unsigned short port); 
+
+FPTR_ProcessNetworkPacket RealProcessNetworkPacket;
 FPTR_SocketLayerSendTo RealSocketLayerSendTo;
 
-typedef void(__stdcall *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
-FPTR_ProcessNetworkPacket RealProcessNetworkPacket;
+DWORD iRealProcessNetworkPacket;
+DWORD iSocketLayerSendTo;
+SOCKET* pRakServerSocket;
+void* pSocketLayerObject;
 
 static const size_t MAX_OFFLINE_DATA_LENGTH = 400;
 
@@ -43,14 +71,8 @@ int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short po
 #endif
 }
 
-
-DWORD iRealProcessNetworkPacket;
-DWORD iSocketLayerSendTo;
-SOCKET* pRakServerSocket;
-void* pSocketLayerObject;
-
 //|Step 1. Hook |Step 2. Challenge |Step 3. PassThrough.
-void __stdcall DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
+void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
 	unsigned int ip_data[2] = { binaryAddress, port };
@@ -80,7 +102,7 @@ void* Detour(unsigned char* src, unsigned char* dst, int num)
 
 	unsigned char *all = new unsigned char[5 + num];
 
-#if defined __LINUX__
+#ifndef _WIN32
 	size_t pagesize = sysconf(_SC_PAGESIZE);
 	size_t addr1 = ((size_t)all / pagesize)*pagesize;
 	size_t addr2 = ((size_t)src / pagesize)*pagesize;
@@ -127,7 +149,7 @@ void Retour(unsigned char* src, unsigned char** all, int num)
 	if (num < 5)
 		return;
 
-#if defined __LINUX__
+#ifndef _WIN32
 	size_t pagesize = sysconf(_SC_PAGESIZE);
 	size_t addr = ((size_t)src / pagesize)*pagesize;
 	mprotect((void*)addr, pagesize + num, PROT_READ | PROT_WRITE | PROT_EXEC);
@@ -157,11 +179,6 @@ void CleanupUnusedWhitelistSlots(int timerid, void * param)
 			i = ip_whitelist.erase(i);
 		else ++i;
 }
-
-#ifdef _WIN32
-#include <Psapi.h>
-#pragma comment(lib, "Psapi.lib")
-#endif
 
 bool memory_compare(const BYTE *data, const BYTE *pattern, const char *mask)
 {
@@ -255,7 +272,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
 {
-	unsigned int ip_data[2] = { boost::asio::ip::address_v4::from_string(ip_address).to_ulong(), port };
+	unsigned int ip_data[2] = { inet_addr(ip_address), port };
 	if (PlayerIPSET[playerid] != 0)
 		ip_whitelist.erase(PlayerIPSET[playerid]);
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
