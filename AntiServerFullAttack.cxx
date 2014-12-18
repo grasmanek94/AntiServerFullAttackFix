@@ -1,10 +1,11 @@
 //AntiServerFull (spoofed ip) fix by BartekDVD & Gamer_Z
 //Thanks to Kurta999 and GWMPT for help
-
+//Works ONLY on SA-MP 0.3z-R4 (windows & linux 500p & linux 1000p)
 #include <set>
 #include <time.h>
 
 #ifdef _WIN32
+
 #define THISCALL __thiscall
 #define STDCALL __stdcall
 
@@ -13,9 +14,12 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "Psapi.lib")
+
 #else
+
 #define THISCALL
 #define STDCALL
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -27,6 +31,7 @@
 typedef unsigned long DWORD;
 typedef int SOCKET;
 typedef unsigned char BYTE;
+
 #endif
 
 #include "sampgdk.h"
@@ -41,10 +46,11 @@ FPTR_SocketLayerSendTo RealSocketLayerSendTo;
 
 DWORD iRealProcessNetworkPacket;
 DWORD iSocketLayerSendTo;
+
 SOCKET* pRakServerSocket;
 void* pSocketLayerObject;
 
-static const size_t PLUGIN_DATA_RAKSERVER = 0xE2; // RakServerInterface* PluginGetRakServer()
+static const size_t PLUGIN_DATA_RAKSERVER = 0xE2;	// RakServerInterface* PluginGetRakServer()
 static const size_t MAX_OFFLINE_DATA_LENGTH = 400;
 
 void *pRakServer = NULL;
@@ -56,7 +62,7 @@ std::set<unsigned long long> ip_whitelist_online;
 unsigned long long PlayerIPSET[MAX_PLAYERS];
 
 size_t MyMagicNumber;
-#define MAGIC 0								//change this to a random number between 0 and 4!
+#define MAGIC 0										//change this to a random number between 0 and 4!
 
 int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short port)
 {
@@ -78,7 +84,6 @@ bool inline IsGoodPongLength(size_t length)
 		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
 }
 
-//|Step 1. Hook |Step 2. Challenge |Step 3. PassThrough.
 void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
@@ -275,7 +280,7 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
 		
-		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC0A);
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC0E);
 
 		if (*((char*)(0x8150D2F + 0x07)) == 0)
 			pSocketLayerObject = (void*)0x08194A00;//500p	
@@ -284,12 +289,17 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 
 #endif
 	}
+
 	return true;
 }
 
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
 {
-	unsigned int ip_data[2] = { inet_addr(ip_address), (unsigned int)port };
+	unsigned int ip_data[2] = 
+	{ 
+		inet_addr(ip_address), 
+		(unsigned int)port
+	};
 
 	if (PlayerIPSET[playerid] != 0)
 		ip_whitelist.erase(PlayerIPSET[playerid]);
