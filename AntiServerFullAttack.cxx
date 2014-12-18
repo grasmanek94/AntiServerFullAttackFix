@@ -22,6 +22,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 typedef unsigned long DWORD;
 typedef int SOCKET;
