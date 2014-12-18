@@ -44,16 +44,12 @@ DWORD iSocketLayerSendTo;
 SOCKET* pRakServerSocket;
 void* pSocketLayerObject;
 
+static const size_t PLUGIN_DATA_RAKSERVER = 0xE2; // RakServerInterface* PluginGetRakServer()
 static const size_t MAX_OFFLINE_DATA_LENGTH = 400;
 
 void *pRakServer = NULL;
-
-bool inline IsGoodPongLength(size_t length)
-{
-	return
-		length >= sizeof(unsigned char) + 4 &&
-		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
-}
+extern void * pAMXFunctions;
+void **gppData = 0;
 
 std::set<unsigned long long> ip_whitelist;
 std::set<unsigned long long> ip_whitelist_online;
@@ -73,6 +69,13 @@ int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short po
 #elif MAGIC == 3
 	return (MyMagicNumber ^ ~binaryAddress) ^ ~port;
 #endif
+}
+
+bool inline IsGoodPongLength(size_t length)
+{
+	return
+		length >= sizeof(unsigned char) + 4 &&
+		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
 }
 
 //|Step 1. Hook |Step 2. Challenge |Step 3. PassThrough.
@@ -97,8 +100,6 @@ void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, cons
 		RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
 	}
 }
-
-static const size_t PLUGIN_DATA_RAKSERVER = 0xE2; // RakServerInterface* PluginGetRakServer()
 
 void* Detour(unsigned char* src, unsigned char* dst, int num)
 {
@@ -222,20 +223,17 @@ DWORD FindPattern(char *pattern, char *mask)
 	return 0;
 }
 
-extern void * pAMXFunctions;
-
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports()
 {
 	return sampgdk::Supports() | SUPPORTS_PROCESS_TICK;
 }
 
-void **gppData = 0;
+
 PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 {
 	pAMXFunctions = ppData[PLUGIN_DATA_AMX_EXPORTS];
 	gppData = ppData;
-	bool load = sampgdk::Load(ppData);
-	return load;
+	return sampgdk::Load(ppData);
 }
 
 PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
@@ -249,8 +247,10 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 	if (doubleinitprotection)
 	{
 		doubleinitprotection = false;
+
 		srand((unsigned int)time(NULL));
 		MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
+
 		sampgdk_SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
 
 		int(*pfn_GetRakServer)(void) = (int(*)(void))gppData[PLUGIN_DATA_RAKSERVER];
@@ -260,27 +260,27 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 
 		int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456EF0;
 		int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633A0;
-		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
-		pSocketLayerObject = (void*)0x004EDA71;
+		
 		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 7));
 		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
+
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
+		pSocketLayerObject = (void*)0x004EDA71;		
 
 #else
 
 		int iSocketLayerSendTo = 0x808EB80;
 		int iRealProcessNetworkPacket = 0x8073080;
+		
 		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
+		
 		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC0A);
 
 		if (*((char*)(0x8150D2F + 0x07)) == 0)
-		{//500p	
-			pSocketLayerObject = (void*)0x08194A00;
-		}
+			pSocketLayerObject = (void*)0x08194A00;//500p	
 		else
-		{//1000p
-			pSocketLayerObject = (void*)0x08194420;
-		}
+			pSocketLayerObject = (void*)0x08194420;//1000p
 
 #endif
 	}
@@ -290,15 +290,19 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
 {
 	unsigned int ip_data[2] = { inet_addr(ip_address), (unsigned int)port };
+
 	if (PlayerIPSET[playerid] != 0)
 		ip_whitelist.erase(PlayerIPSET[playerid]);
+
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
+
 	return true;
 }
 
 SAMPGDK_CALLBACK(bool, OnPlayerConnect(int playerid))
 {
 	ip_whitelist_online.insert(PlayerIPSET[playerid]);
+
 	return true;
 }
 
@@ -306,7 +310,9 @@ SAMPGDK_CALLBACK(bool, OnPlayerDisconnect(int playerid, int reason))
 {
 	ip_whitelist_online.erase(PlayerIPSET[playerid]);
 	ip_whitelist.erase(PlayerIPSET[playerid]);
+
 	PlayerIPSET[playerid] = 0;
+
 	return true;
 }
 
