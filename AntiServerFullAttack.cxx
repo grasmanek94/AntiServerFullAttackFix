@@ -85,8 +85,10 @@ bool inline IsGoodPongLength(size_t length)
 		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
 }
 
-//enable/disable (whichever is appropriate) this definition if you have problems with players losing randomly connection
-#define REQUIRE_BYTESWAP
+#if _WIN32
+	//enable/disable (whichever is appropriate) this definition if you have problems with players losing randomly connection
+	#define REQUIRE_BYTESWAP
+#endif
 
 #ifdef REQUIRE_BYTESWAP
 unsigned long inline asfa_swapbytes(unsigned long bytes)
