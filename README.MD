@@ -13,9 +13,13 @@ Linux:
     cd ./AntiServerFullAttackFix-master
     make AntiServerFullFix
 
+Now copy the AntiServerFullFix.so file to your server plugins folder, add it to the server.cfg on the plugins line (order doesn't matter) and your server will be protected.
+
 Windows:
 
     Open the solution with Visual Studio 2013 (express is fine) and hit "Build Solution"
+
+Now copy the Release/AntiServerFullFix.dll file to your server plugins folder, add it to the server.cfg on the plugins line (order doesn't matter) and your server will be protected.
 
 Notes:
 
