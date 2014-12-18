@@ -1,6 +1,5 @@
 //AntiServerFull (spoofed ip) fix by BartekDVD & Gamer_Z
 //Thanks to Kurta999 and GWMPT for help
-//Todo: LINUX version
 
 #include <set>
 #include <boost/asio.hpp>
@@ -17,10 +16,10 @@ static const size_t MAX_OFFLINE_DATA_LENGTH = 400;
 
 void *pRakServer = NULL;
 
-bool inline IsGoodPongLength(size_t length) 
+bool inline IsGoodPongLength(size_t length)
 {
-	return 
-		length >= sizeof(unsigned char) + 4 && 
+	return
+		length >= sizeof(unsigned char) + 4 &&
 		length < sizeof(unsigned char) + 4 + MAX_OFFLINE_DATA_LENGTH;
 }
 
@@ -28,7 +27,7 @@ std::set<unsigned long long> ip_whitelist;
 std::set<unsigned long long> ip_whitelist_online;
 unsigned long long PlayerIPSET[MAX_PLAYERS];
 
-size_t MyMagicNumber;	
+size_t MyMagicNumber;
 #define MAGIC 0								//change this to a random number between 0 and 4!
 
 int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short port)
@@ -153,7 +152,7 @@ void Retour(unsigned char* src, unsigned char** all, int num)
 void CleanupUnusedWhitelistSlots(int timerid, void * param)
 {
 	MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
-	for (auto i = ip_whitelist.begin(); i != ip_whitelist.end(); )
+	for (auto i = ip_whitelist.begin(); i != ip_whitelist.end();)
 		if (ip_whitelist_online.find(*i) == ip_whitelist_online.end())
 			i = ip_whitelist.erase(i);
 		else ++i;
@@ -213,33 +212,39 @@ PLUGIN_EXPORT bool PLUGIN_CALL Load(void **ppData)
 	MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
 	sampgdk_SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
 
-#ifdef _WIN32
 	int(*pfn_GetRakServer)(void) = (int(*)(void))ppData[PLUGIN_DATA_RAKSERVER];
+	pRakServer = (void*)pfn_GetRakServer();
+
+#ifdef _WIN32
 
 	int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456EF0;
 	int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633A0;
-
-	pRakServer = (void*)pfn_GetRakServer();
-	RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 7));
-	RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
-
 	pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
 	pSocketLayerObject = (void*)0x004EDA71;
-
-#else
-	//TODO: linux
-	int(*pfn_GetRakServer)(void) = (int(*)(void))ppData[PLUGIN_DATA_RAKSERVER];
-
-	int iRealProcessNetworkPacket = 0;
-	int iSocketLayerSendTo = 0;
-
-	pRakServer = (void*)pfn_GetRakServer();
 	RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 7));
 	RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 
-	pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);//will this be the same on linux too?
-	pSocketLayerObject = (void*)0;
+#else
+	if (*((char*)(0x8150D2F + 0x07) == 0)
+	{//500p
+		int iRealProcessNetworkPacket = 0x8073080;
+		int iSocketLayerSendTo = 0x808EB80;
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC12);
+		pSocketLayerObject = (void*)0x08194A00;
+		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
+		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
+	}
+	else
+	{//1000p
+		int iRealProcessNetworkPacket = 0x8073080;
+		int iSocketLayerSendTo = 0x808EB80;
+		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC12);
+		pSocketLayerObject = (void*)0x08194420;
+		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
+		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
+	}
 #endif
+
 	return load;
 }
 
