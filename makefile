@@ -20,4 +20,4 @@ AntiServerFullFix: clean
 	$(GCC) $(AntiServerFullFix) ./sampgdk.c
 	$(GPP) $(AntiServerFullFix) ./AntiServerFullAttack.cxx
 
-	$(GPP) -shared -m32 -o $(OUTFILE) *.o
+	$(GPP) -shared -m32 -lrt -o $(OUTFILE) *.o
