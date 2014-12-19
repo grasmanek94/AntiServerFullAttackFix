@@ -2512,7 +2512,7 @@ _SAMPGDK_AMXHOOKS_FUNC_LIST(_SAMPGDK_AMXHOOKS_DEFINE_HOOK)
  * Thanks to Incognito for finding this bug!
  */
 static cell AMX_NATIVE_CALL _sampgdk_amxhooks_funcidx(AMX *amx, cell *params) {
-	return -1;
+
   char *funcname;
   int index;
   int error;
