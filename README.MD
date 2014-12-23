@@ -29,3 +29,6 @@ Notes:
 		#define REQUIRE_BYTESWAP
 
     This will fix issues with players losing connection to your server
+
+    CentOS and Fedora (RedHat based systems) Users: Your operating system enforces security protections which also prevent memory hacking (which this plugin does).
+    You need to disable setenforce on your system (setenforce 0).
