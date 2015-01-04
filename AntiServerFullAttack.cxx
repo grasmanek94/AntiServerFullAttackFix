@@ -168,6 +168,12 @@ void generate_shuffles(int timerid, void * param)
 {
 	MyMagicNumber = (rand() % 0xFFFF) << 16 | (rand() % 0xFFFF);
 
+	char * magic_sz = (char*)&MyMagicNumber;
+	if (!magic_sz[0]) magic_sz[0] = 1;
+	if (!magic_sz[1]) magic_sz[1] = 1;
+	if (!magic_sz[2]) magic_sz[2] = 1;
+	if (!magic_sz[3]) magic_sz[3] = 1;
+
 	std::vector<size_t> vec;
 
 	for (size_t i = 0; i < 16; ++i)
@@ -194,15 +200,21 @@ unsigned long MySecretReturnCode(const unsigned int binaryAddress, const unsigne
 	return (unsigned long)((_a*_b | _c * _d | _f * _g * _e) ^ shuffle[7]);
 }
 
-unsigned long _final_security_code(unsigned long ulong_ip, unsigned short port)
+unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned short port)
 {
 	char ip_sz[5];
 	char magic_sz[5];
 	char port_sz[3];
 
-	*(unsigned long*)ip_sz = ulong_ip;
 	*(unsigned long*)magic_sz = MyMagicNumber;
 	*(unsigned short*)port_sz = port;
+
+	if (!ip_sz[0]) ip_sz[0] = 1;
+	if (!ip_sz[1]) ip_sz[1] = 1;
+	if (!ip_sz[2]) ip_sz[2] = 1;
+	if (!ip_sz[3]) ip_sz[3] = 1;
+	if (!port_sz[0]) port_sz[0] = 1;
+	if (!port_sz[1]) port_sz[1] = 1;
 
 	ip_sz[4] = 0;
 	port_sz[2] = 0;
