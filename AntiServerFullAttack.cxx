@@ -218,6 +218,7 @@ unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned s
 	if (!port_sz[1]) port_sz[1] = 1;
 
 	ip_sz[4] = 0;
+	magic_sz[4] = 0;
 	port_sz[2] = 0;
 
 	return fnv_32a_str(magic_sz, (fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port)))));
