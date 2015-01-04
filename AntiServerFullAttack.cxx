@@ -207,7 +207,7 @@ unsigned long _final_security_code(unsigned long ulong_ip, unsigned short port)
 	ip_sz[4] = 0;
 	port_sz[2] = 0;
 
-	return fnv_32a_str(magic_sz, (fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port))));
+	return fnv_32a_str(magic_sz, (fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port)))));
 }
 
 bool inline IsGoodPongLength(size_t length)
