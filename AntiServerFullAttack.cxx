@@ -206,6 +206,7 @@ unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned s
 	char magic_sz[5];
 	char port_sz[3];
 
+	*(unsigned long*)ip_sz = ulong_ip;
 	*(unsigned long*)magic_sz = MyMagicNumber;
 	*(unsigned short*)port_sz = port;
 
