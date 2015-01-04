@@ -3,6 +3,8 @@
 //Works ONLY on SA-MP 0.3z-R4 (windows & linux 500p & linux 1000p)
 #include <set>
 #include <time.h>
+#include <vector>
+#include <string>
 
 #ifdef _WIN32
 
@@ -62,20 +64,148 @@ std::set<unsigned long long> ip_whitelist;
 std::set<unsigned long long> ip_whitelist_online;
 unsigned long long PlayerIPSET[MAX_PLAYERS];
 
-size_t MyMagicNumber;
-#define MAGIC 0										//change this to a random number between 0 and 4!
+typedef unsigned long Fnv32_t;
 
-int MySecretReturnCode(const unsigned int binaryAddress, const unsigned short port)
+
+/*
+* 32 bit magic FNV-1a prime
+*/
+#define FNV_32_PRIME ((Fnv32_t)0x01000193)
+
+
+/*
+* fnv_32a_buf - perform a 32 bit Fowler/Noll/Vo FNV-1a hash on a buffer
+*
+* input:
+*	buf	- start of buffer to hash
+*	len	- length of buffer in octets
+*	hval	- previous hash value or 0 if first call
+*
+* returns:
+*	32 bit hash as a static hash type
+*
+* NOTE: To use the recommended 32 bit FNV-1a hash, use FNV1_32A_INIT as the
+* 	 hval arg on the first call to either fnv_32a_buf() or fnv_32a_str().
+*/
+Fnv32_t
+fnv_32a_buf(void *buf, size_t len, Fnv32_t hval)
 {
-#if MAGIC == 0
-	return (MyMagicNumber ^ binaryAddress) ^ ~port;
-#elif MAGIC == 1
-	return (MyMagicNumber ^ binaryAddress) ^ port;
-#elif MAGIC == 2
-	return (MyMagicNumber ^ ~binaryAddress) ^ port;
-#elif MAGIC == 3
-	return (MyMagicNumber ^ ~binaryAddress) ^ ~port;
+	unsigned char *bp = (unsigned char *)buf;	/* start of buffer */
+	unsigned char *be = bp + len;		/* beyond end of buffer */
+
+	/*
+	* FNV-1a hash each octet in the buffer
+	*/
+	while (bp < be) {
+
+		/* xor the bottom with the current octet */
+		hval ^= (Fnv32_t)*bp++;
+
+		/* multiply by the 32 bit FNV magic prime mod 2^32 */
+#if defined(NO_FNV_GCC_OPTIMIZATION)
+		hval *= FNV_32_PRIME;
+#else
+		hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
 #endif
+	}
+
+	/* return our new hash value */
+	return hval;
+}
+
+
+/*
+* fnv_32a_str - perform a 32 bit Fowler/Noll/Vo FNV-1a hash on a string
+*
+* input:
+*	str	- string to hash
+*	hval	- previous hash value or 0 if first call
+*
+* returns:
+*	32 bit hash as a static hash type
+*
+* NOTE: To use the recommended 32 bit FNV-1a hash, use FNV1_32A_INIT as the
+*  	 hval arg on the first call to either fnv_32a_buf() or fnv_32a_str().
+*/
+Fnv32_t
+fnv_32a_str(char *str, Fnv32_t hval)
+{
+	unsigned char *s = (unsigned char *)str;	/* unsigned string */
+
+	/*
+	* FNV-1a hash each octet in the buffer
+	*/
+	while (*s) {
+
+		/* xor the bottom with the current octet */
+		hval ^= (Fnv32_t)*s++;
+
+		/* multiply by the 32 bit FNV magic prime mod 2^32 */
+#if defined(NO_FNV_GCC_OPTIMIZATION)
+		hval *= FNV_32_PRIME;
+#else
+		hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
+#endif
+	}
+
+	/* return our new hash value */
+	return hval;
+}
+///////////////////////////////////
+size_t MyMagicNumber;
+
+size_t shuffle[9];
+
+size_t get_vec_remove_num(std::vector<size_t>& vec)
+{
+	size_t num = rand() % vec.size();
+	size_t retval = vec[num];
+	vec.erase(vec.begin() + num);
+	return retval;
+}
+
+void generate_shuffles(int timerid, void * param)
+{
+	MyMagicNumber = (rand() % 0xFFFF) << 16 | (rand() % 0xFFFF);
+
+	std::vector<size_t> vec;
+
+	for (size_t i = 0; i < 16; ++i)
+		vec.push_back((size_t)(rand() % 6));
+
+	for (size_t i = 0; i < 8; ++i)
+		shuffle[i] = (get_vec_remove_num(vec)) + (get_vec_remove_num(vec));
+
+	shuffle[7] = rand() % 3;
+}
+
+unsigned long MySecretReturnCode(const unsigned int binaryAddress, const unsigned short port)
+{
+	unsigned long long _a = MyMagicNumber << shuffle[0];
+	unsigned long long _b = binaryAddress << shuffle[1];
+	unsigned long long _c = port << shuffle[2];
+
+	unsigned long long _d = (_a + _b) >> shuffle[3];
+	unsigned long long _e = (_c + _d) >> shuffle[4];
+
+	unsigned long long _f = (_a - _d) << shuffle[5];
+	unsigned long long _g = (_c - _b) << shuffle[6];
+
+	return (unsigned long)((_a*_b | _c * _d | _f * _g * _e) ^ shuffle[7]);
+}
+
+unsigned long _final_security_code(unsigned long ulong_ip, unsigned short port)
+{
+	char ip_sz[5];
+	char port_sz[3];
+
+	*(unsigned long*)ip_sz = ulong_ip;
+	*(unsigned short*)port_sz = port;
+
+	ip_sz[4] = 0;
+	port_sz[2] = 0;
+
+	return fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port)));
 }
 
 bool inline IsGoodPongLength(size_t length)
@@ -86,39 +216,41 @@ bool inline IsGoodPongLength(size_t length)
 }
 
 #if _WIN32
-	//enable/disable (whichever is appropriate) this definition if you have problems with players losing randomly connection
-	#define REQUIRE_BYTESWAP
+	#define REQUIRE_BYTESWAP//define or undefine if players timout after installing this plugin
 #endif
 
-#ifdef REQUIRE_BYTESWAP
+#if __linux
+	//#define REQUIRE_BYTESWAP//define or undefine if players timout after installing this plugin
+#endif
+
 unsigned long inline asfa_swapbytes(unsigned long bytes)
 {
+#ifdef REQUIRE_BYTESWAP
 	#ifdef _WIN32
 		return _byteswap_ulong(bytes);
 	#else
 	return __builtin_bswap32(bytes);
 	#endif
-}
+#else
+	return bytes;
 #endif
+}
 
 void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
 	unsigned int ip_data[2] = {
-		#ifdef REQUIRE_BYTESWAP
 		asfa_swapbytes(binaryAddress),
-		#else
-		binaryAddress,
-		#endif
 		(unsigned int)port
 	};
+
 	if (ip_whitelist.find(*(unsigned long long*)ip_data) == ip_whitelist.end())
 	{
 		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == MySecretReturnCode(ip_data[0], port))
 			ip_whitelist.insert(*(unsigned long long*)ip_data);
 		else
 		{
-			(*(int*)(ping + 1)) = MySecretReturnCode(ip_data[0], port);
+			(*(int*)(ping + 1)) = _final_security_code(ip_data[0], port);
 			RealSocketLayerSendTo(pSocketLayerObject, *pRakServerSocket, (const char*)ping, 5, binaryAddress, port);
 		}
 	}
@@ -273,7 +405,10 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 		doubleinitprotection = false;
 
 		srand((unsigned int)time(NULL));
-		MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
+
+		generate_shuffles(0,0);
+
+		sampgdk_SetTimer(15000, true, generate_shuffles, 0);
 
 		sampgdk_SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
 
