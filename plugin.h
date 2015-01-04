@@ -150,6 +150,12 @@ enum PLUGIN_AMX_EXPORT
 #endif
 #if defined LINUX || defined __FreeBSD__ || defined __OpenBSD__
 /*
+ * Disable useless warning about packing 1 char
+ */
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wattributes"
+#endif
+/*
  * Things needed to compile under linux.
  *
  * Should be reworked totally to use GNU's 'configure'

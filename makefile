@@ -1,5 +1,5 @@
-GPP = g++
-GCC = gcc
+GPP = c++
+GCC = cc
 
 OUTFILE = "./AntiServerFullFix.so"
 
@@ -9,6 +9,7 @@ OPTIMIZATION_FLAGS=-O3
 COMPATIBILITY_FLAGS=-finput-charset=windows-1252 -fshort-wchar -mfpmath=sse -msse2 -m32 -std=c++11
 
 AntiServerFullFix = -c $(INCLUDE_DIRECTORIES) $(PREPROCESSOR_DEFINITIONS) $(OPTIMIZATION_FLAGS) $(COMPATIBILITY_FLAGS)
+SAMP_GDK = -c $(INCLUDE_DIRECTORIES) $(PREPROCESSOR_DEFINITIONS) $(OPTIMIZATION_FLAGS) -m32
 
 all: AntiServerFullFix
 
@@ -17,7 +18,7 @@ clean:
 
 AntiServerFullFix: clean
 	$(GPP) $(AntiServerFullFix) ./amxplugin.cpp
-	$(GCC) $(AntiServerFullFix) ./sampgdk.c
+	$(GCC) $(SAMP_GDK) ./sampgdk.c
 	$(GPP) $(AntiServerFullFix) ./AntiServerFullAttack.cxx
 
 	$(GPP) -shared -m32 -lrt -o $(OUTFILE) *.o
