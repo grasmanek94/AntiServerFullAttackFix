@@ -261,7 +261,7 @@ void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, cons
 
 	if (ip_whitelist.find(*(unsigned long long*)ip_data) == ip_whitelist.end())
 	{
-		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == MySecretReturnCode(ip_data[0], port))
+		if (data[0] == 40/*ID_PONG*/ && IsGoodPongLength(length) && (*(int*)(data + 1)) == _final_security_code(ip_data[0], port))
 			ip_whitelist.insert(*(unsigned long long*)ip_data);
 		else
 		{
