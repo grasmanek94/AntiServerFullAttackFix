@@ -339,7 +339,6 @@ void Retour(unsigned char* src, unsigned char** all, int num)
 //run each minut to perform some unused memory cleanup
 void CleanupUnusedWhitelistSlots(int timerid, void * param)
 {
-	MyMagicNumber = 0x22222222 + (rand() % (0xAAAAAAAA - 0x22222222));
 	for (auto i = ip_whitelist.begin(); i != ip_whitelist.end();)
 		if (ip_whitelist_online.find(*i) == ip_whitelist_online.end())
 			i = ip_whitelist.erase(i);
