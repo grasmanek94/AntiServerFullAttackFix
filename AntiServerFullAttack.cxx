@@ -203,6 +203,7 @@ unsigned long MySecretReturnCode(const unsigned int binaryAddress, const unsigne
 unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned short port)
 {
 	char ip_sz[5];
+	char uniqueness_sz[5] { 0x11, 0x11, 0x11, 0x11, 0x00 };
 	char magic_sz[5];
 	char port_sz[3];
 
@@ -210,10 +211,27 @@ unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned s
 	*(unsigned long*)magic_sz = MyMagicNumber;
 	*(unsigned short*)port_sz = port;
 
-	if (!ip_sz[0]) ip_sz[0] = 1;
-	if (!ip_sz[1]) ip_sz[1] = 1;
-	if (!ip_sz[2]) ip_sz[2] = 1;
-	if (!ip_sz[3]) ip_sz[3] = 1;
+	if (!ip_sz[0])
+	{
+		ip_sz[0] = 1;
+		uniqueness_sz[0] = 0x22;
+	}
+	if (!ip_sz[1])
+	{
+		ip_sz[1] = 1;
+		uniqueness_sz[1] = 0x33;
+	}
+	if (!ip_sz[2])
+	{
+		ip_sz[2] = 1;
+		uniqueness_sz[2] = 0x44;
+	}
+	if (!ip_sz[3])
+	{
+		ip_sz[3] = 1;
+		uniqueness_sz[3] = 0x55;
+	}
+	
 	if (!port_sz[0]) port_sz[0] = 1;
 	if (!port_sz[1]) port_sz[1] = 1;
 
@@ -221,7 +239,7 @@ unsigned long _final_security_code(const unsigned int ulong_ip, const unsigned s
 	magic_sz[4] = 0;
 	port_sz[2] = 0;
 
-	return fnv_32a_str(magic_sz, (fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port)))));
+	return fnv_32a_str(uniqueness_sz, fnv_32a_str(magic_sz, (fnv_32a_str(port_sz, fnv_32a_str(ip_sz, MySecretReturnCode(ulong_ip, port))))));
 }
 
 bool inline IsGoodPongLength(size_t length)
