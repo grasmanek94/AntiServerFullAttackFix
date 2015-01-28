@@ -10,6 +10,7 @@
 
 #define THISCALL __thiscall
 #define STDCALL __stdcall
+#define CDECL __cdecl
 
 #include <Windows.h>
 #include <Psapi.h>
@@ -22,7 +23,7 @@
 
 #define THISCALL
 #define STDCALL
-
+#define CDECL
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -412,6 +413,21 @@ DWORD FindPattern(char *pattern, char *mask)
 	return 0;
 }
 
+//////////////ping flood protect//////////////////////
+typedef int(CDECL *FPTR_ProcessQueryPacket)(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s);
+FPTR_ProcessQueryPacket RealProcessQueryPacket;
+
+typedef bool(CDECL *FPTR_CheckQueryFlood)(struct in_addr binaryAddress);
+FPTR_CheckQueryFlood FuncCheckQueryFlood;
+
+int CDECL DetouredProcessQueryPacket(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s)
+{
+	if (data[10] == 'p' && FuncCheckQueryFlood(binaryAddress))
+		return 0;
+	return RealProcessQueryPacket(binaryAddress, port, data, length, s);
+}
+//////////////////////////////////////////////////////
+
 PLUGIN_EXPORT unsigned int PLUGIN_CALL Supports()
 {
 	return sampgdk::Supports() | SUPPORTS_PROCESS_TICK;
@@ -459,6 +475,12 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC20);
 		pSocketLayerObject = (void*)0x004EDA71;		
 
+		//////////////ping flood protect//////////////////////
+		int iProcessQueryPacket = 0x00492660;
+		RealProcessQueryPacket = reinterpret_cast<FPTR_ProcessQueryPacket>(Detour((unsigned char*)iProcessQueryPacket, (unsigned char*)DetouredProcessQueryPacket, 7));
+		int CheckQueryFlood = 0x00492510;
+		FuncCheckQueryFlood = reinterpret_cast<FPTR_CheckQueryFlood>(CheckQueryFlood);
+		//////////////////////////////////////////////////////
 #else
 
 		int iSocketLayerSendTo = 0x808EB80;
@@ -473,6 +495,13 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 			pSocketLayerObject = (void*)0x08194A00;//500p	
 		else
 			pSocketLayerObject = (void*)0x08194420;//1000p
+
+		//////////////ping flood protect//////////////////////
+		int iProcessQueryPacket = 0x080D0EB0;
+		RealProcessQueryPacket = reinterpret_cast<FPTR_ProcessQueryPacket>(Detour((unsigned char*)iProcessQueryPacket, (unsigned char*)DetouredProcessQueryPacket, 7));
+		int CheckQueryFlood = 0x080D0D50;
+		FuncCheckQueryFlood = reinterpret_cast<FPTR_CheckQueryFlood>(CheckQueryFlood);
+		//////////////////////////////////////////////////////
 
 #endif
 	}
