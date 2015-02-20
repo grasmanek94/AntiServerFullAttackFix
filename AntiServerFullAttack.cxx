@@ -8,9 +8,9 @@
 
 #ifdef _WIN32
 
-#define THISCALL __thiscall
-#define STDCALL __stdcall
-#define CDECL __cdecl
+#define PLUGIN_THISCALL __thiscall
+#define PLUGIN_STDCALL __stdcall
+#define PLUGIN_CDECL __cdecl
 
 #include <Windows.h>
 #include <Psapi.h>
@@ -21,9 +21,9 @@
 
 #else
 
-#define THISCALL
-#define STDCALL
-#define CDECL
+#define PLUGIN_THISCALL
+#define PLUGIN_STDCALL
+#define PLUGIN_CDECL
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -40,8 +40,8 @@ typedef unsigned char BYTE;
 
 #include "sampgdk.h"
 
-typedef int(THISCALL *FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char *data, int length, unsigned int binaryAddress, unsigned short port);
-typedef void(STDCALL *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
+typedef int(PLUGIN_THISCALL *FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char *data, int length, unsigned int binaryAddress, unsigned short port);
+typedef void(PLUGIN_STDCALL *FPTR_ProcessNetworkPacket)(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer);//0x00456EF0
 
 int SendTo(SOCKET s, const char *data, int length, char ip[16], unsigned short port); 
 
@@ -271,7 +271,7 @@ unsigned long inline asfa_swapbytes(unsigned long bytes)
 #endif
 }
 
-void STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
+void PLUGIN_STDCALL DetouredProcessNetworkPacket(const unsigned int binaryAddress, const unsigned short port, const char *data, const int length, void *rakPeer)
 {
 	static char ping[5] = { 8/*ID_PING*/, 0, 0, 0, 0 };
 	unsigned int ip_data[2] = {
@@ -414,13 +414,13 @@ DWORD FindPattern(char *pattern, char *mask)
 }
 
 //////////////ping flood protect//////////////////////
-typedef int(CDECL *FPTR_ProcessQueryPacket)(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s);
+typedef int(PLUGIN_CDECL *FPTR_ProcessQueryPacket)(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s);
 FPTR_ProcessQueryPacket RealProcessQueryPacket;
 
-typedef bool(CDECL *FPTR_CheckQueryFlood)(struct in_addr binaryAddress);
+typedef bool(PLUGIN_CDECL *FPTR_CheckQueryFlood)(struct in_addr binaryAddress);
 FPTR_CheckQueryFlood FuncCheckQueryFlood;
 
-int CDECL DetouredProcessQueryPacket(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s)
+int PLUGIN_CDECL DetouredProcessQueryPacket(struct in_addr binaryAddress, u_short port, char *data, int length, SOCKET s)
 {
 	if (data[10] == 'p' && FuncCheckQueryFlood(binaryAddress))
 		return 0;
